@@ -1,4 +1,4 @@
-# 🚀 Way Back Home
+#  🚀 Way Back Home
 
 ![Way Back Home](dashboard/frontend/public/prelude.png)
 
@@ -126,9 +126,19 @@ See [Deployment Guide](#-deployment) below for running your own instance.
    ```
 
 4. **Deploy all services:**
+   
+   > **Note:** On your first deployment, Cloud Run will generate unique URLs for your services. After the build finishes, you **must** redeploy the frontend once more using these specific URLs to ensure the 3D map can communicate with the API.
+
    ```bash
+   # First deployment (to generate URLs)
+   gcloud builds submit --config cloudbuild.yaml
+
+   # Get your URLs
+   gcloud run services list
+
+   # Redeploy frontend with the actual URLs
    gcloud builds submit --config cloudbuild.yaml \
-     --substitutions=_API_BASE_URL=https://api.yourdomain.dev,_MAP_BASE_URL=https://yourdomain.dev
+     --substitutions=_API_BASE_URL=https://your-api-url-here,_MAP_BASE_URL=https://your-frontend-url-here,_DEPLOY_BACKEND=false
    ```
 
 ### Environment Configuration
@@ -146,16 +156,40 @@ export MAP_BASE_URL="https://yourdomain.dev"
 
 ### Before the Workshop
 
-1. Deploy backend and frontend to your GCP project
-2. Create an event in the admin panel or via API:
+1. Deploy backend and frontend to your GCP project. Ensure you pass your Cloud Run service URLs to the `substitutions` flag in `gcloud builds submit`.
+2. Create an event using one of the following methods:
+
+#### Method A: CLI (Recommended for hosts)
+Use the provided Python script to create an event directly in Firestore using your authenticated `gcloud` credentials:
+```bash
+python3 scripts/create_event.py your-event-code "Your Workshop Name" --project YOUR_PROJECT_ID
+```
+
+#### Method B: API (Manual)
+1. **Retrieve a Firebase ID Token from the terminal:**
+   ```bash
+   # 1. Get your Google Identity Token
+   ID_TOKEN=$(gcloud auth print-identity-token)
+   
+   # 2. Exchange it for a Firebase ID Token (requires Firebase Web API Key)
+   # You can find your API Key in the Firebase Console > Project Settings
+   API_KEY="YOUR_FIREBASE_WEB_API_KEY"
+   
+   curl -s -X POST "https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key=${API_KEY}" \
+     -H "Content-Type: application/json" \
+     -d "{\"postBody\": \"id_token=${ID_TOKEN}&providerId=google.com\", \"requestUri\": \"http://localhost\", \"returnIdpCredential\": true, \"returnSecureToken\": true}" | jq -r .idToken
+   ```
+
+2. **Call the Admin API:**
    ```bash
    curl -X POST https://api.yourdomain.dev/admin/events \
      -H "Authorization: Bearer $FIREBASE_TOKEN" \
      -H "Content-Type: application/json" \
      -d '{"code": "your-event-code", "name": "Your Workshop Name"}'
    ```
-3. Generate QR codes pointing to your event URL
-4. Test the full flow with a sample participant
+
+3. Generate QR codes pointing to your event URL.
+4. Test the full flow with a sample participant.
 
 ### During the Workshop
 
@@ -203,5 +237,3 @@ Apache 2.0 - See [LICENSE](LICENSE) for details.
 - 3D visualization with [React Three Fiber](https://docs.pmnd.rs/react-three-fiber)
 
 ---
-
-**Ready to find your way back home?** Start with [Level 0](level_0/README.md) 🚀
